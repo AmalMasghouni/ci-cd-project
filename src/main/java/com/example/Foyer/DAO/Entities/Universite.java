@@ -17,6 +17,7 @@ import java.io.Serializable;
 public class Universite implements Serializable {
 
     //test
+    //bonjo
     //jjjj
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

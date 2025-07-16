@@ -16,12 +16,10 @@ import java.io.Serializable;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Universite implements Serializable {
 
-    //test
-    //bonjo
-    //jjjj
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     long idUniversite;
     String nomUniversite;
     String adresse;
+
 }

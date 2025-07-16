@@ -15,6 +15,7 @@ import java.io.Serializable;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Universite implements Serializable {
+    //hello
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     long idUniversite;

@@ -42,7 +42,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQubeServer') {
+                withSonarQubeEnv('SonarQube') {
                     sh "mvn sonar:sonar -Dsonar.projectKey=alinfo5-groupe4-2 -Dsonar.host.url=${env.SONAR_HOST_URL} -Dsonar.login=${env.SONAR_TOKEN}"
                 }
             }

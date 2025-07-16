@@ -1,17 +1,14 @@
 pipeline {
     agent any
-    triggers { githubPush() }
 
     environment {
-        SONAR_HOST_URL = 'http://192.168.33.10:9000'
-        SONAR_TOKEN = credentials('SONAR_TOKEN2')
+        SONAR_HOST_URL = 'http://localhost:9000'
+        SONAR_TOKEN = credentials('sonar-token')
+        NEXUS_URL = 'http://localhost:8081'
+        NEXUS_CREDENTIALS = 'nexus-admin-credentials'
+        GIT_CREDENTIALS = 'AmalMasghouni'
         VERSION = "${env.BUILD_NUMBER}"
         JAR_FILE = "target/Foyer-${VERSION}.jar"
-    }
-
-    options {
-        skipStagesAfterUnstable()
-        timestamps()
     }
 
     stages {
@@ -25,7 +22,14 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo "📥 Cloning repository..."
-                checkout scm
+                checkout scm: [
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/AmalMasghouni/ci-cd-project.git',
+                        credentialsId: env.GIT_CREDENTIALS
+                    ]]
+                ]
             }
         }
 
@@ -38,8 +42,8 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('MySonarQubeServer') {
-                    sh 'mvn sonar:sonar -Dsonar.projectKey=alinfo5-groupe4-2'
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=alinfo5-groupe4-2 -Dsonar.host.url=${env.SONAR_HOST_URL} -Dsonar.login=${env.SONAR_TOKEN}"
                 }
             }
         }
@@ -51,14 +55,15 @@ pipeline {
                         def qg = waitForQualityGate()
                         echo "Quality Gate status: ${qg.status}"
                         env.QUALITY_GATE_STATUS = qg.status
-                        echo "Quality Gate status: ${env.QUALITY_GATE_STATUS}"
                     }
                 }
             }
         }
 
         stage('Package') {
-            when { expression { env.QUALITY_GATE_STATUS == 'OK' } }
+            when {
+                expression { env.QUALITY_GATE_STATUS == 'OK' }
+            }
             steps {
                 echo "📦 Packaging the application..."
                 sh 'mvn package -DskipTests'
@@ -67,26 +72,26 @@ pipeline {
         }
 
         stage('Upload to Nexus') {
-            when { expression { env.QUALITY_GATE_STATUS == 'OK' } }
+            when {
+                expression { env.QUALITY_GATE_STATUS == 'OK' }
+            }
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    echo "⬆️ Uploading to Nexus..."
-                    nexusArtifactUploader(
-                        artifacts: [[
-                            artifactId: 'Foyer',
-                            classifier: '',
-                            file: env.JAR_FILE,
-                            type: 'jar'
-                        ]],
-                        credentialsId: 'nexus-creds',
-                        groupId: 'com.example',
-                        nexusUrl: '192.168.33.10:8081',
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        repository: 'Foyer',
-                        version: env.VERSION
-                    )
-                }
+                echo "⬆️ Uploading to Nexus..."
+                nexusArtifactUploader(
+                    nexusUrl: env.NEXUS_URL,
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    repository: 'Foyer',
+                    credentialsId: env.NEXUS_CREDENTIALS,
+                    groupId: 'com.example',
+                    version: env.VERSION,
+                    artifacts: [[
+                        artifactId: 'Foyer',
+                        classifier: '',
+                        file: env.JAR_FILE,
+                        type: 'jar'
+                    ]]
+                )
             }
         }
     }
@@ -95,30 +100,28 @@ pipeline {
         success {
             echo '🎉 Build completed successfully!'
             script {
-                script {
-                    if (env.QUALITY_GATE_STATUS == 'OK') {
-                        emailext (
-                            subject: "SUCCESS: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-                            body: """<p>🎉 <b>Build Successfully Deployed!</b></p>
-                                     <p>Project: ${env.JOB_NAME}</p>
-                                     <p>Build: #${env.BUILD_NUMBER}</p>
-                                     <p>Quality Gate: PASSED ✅</p>
-                                     <p>Artifact: Foyer-${env.BUILD_NUMBER}.jar</p>
-                                     <p><a href="${env.BUILD_URL}">View Build</a></p>""",
-                            to: 'devops@example.com',
-                            mimeType: 'text/html'
-                        )
-                    } else {
-                        emailext (
-                            subject: "WARNING: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-                            body: """<p>⚠️ <b>Quality Gate Failed</b></p>
-                                     <p>Build succeeded but artifacts NOT deployed</p>
-                                     <p>Status: ${env.QUALITY_GATE_STATUS}</p>
-                                     <p><a href="${env.BUILD_URL}">Investigate Build</a></p>""",
-                            to: 'devops@example.com',
-                            mimeType: 'text/html'
-                        )
-                    }
+                if (env.QUALITY_GATE_STATUS == 'OK') {
+                    emailext (
+                        subject: "SUCCESS: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                        body: """<p>🎉 Build Successfully Deployed!</p>
+                                 <p>Project: ${env.JOB_NAME}</p>
+                                 <p>Build: #${env.BUILD_NUMBER}</p>
+                                 <p>Quality Gate: PASSED ✅</p>
+                                 <p>Artifact: Foyer-${env.BUILD_NUMBER}.jar</p>
+                                 <p><a href="${env.BUILD_URL}">View Build</a></p>""",
+                        to: 'masghouniamal84@gmail.com',
+                        mimeType: 'text/html'
+                    )
+                } else {
+                    emailext (
+                        subject: "WARNING: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                        body: """<p>⚠️ Quality Gate Failed</p>
+                                 <p>Build succeeded but artifacts NOT deployed</p>
+                                 <p>Status: ${env.QUALITY_GATE_STATUS}</p>
+                                 <p><a href="${env.BUILD_URL}">Investigate Build</a></p>""",
+                        to: 'masghouniamal84@gmail.com',
+                        mimeType: 'text/html'
+                    )
                 }
             }
         }
@@ -130,7 +133,7 @@ pipeline {
                     body: """<p>❌ Build failed during stage: ${currentBuild.currentResult}</p>
                              <p>Quality Gate Status: ${env.QUALITY_GATE_STATUS ?: 'N/A'}</p>
                              <p>Check console output: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a></p>""",
-                    to: 'dev-team@example.com',
+                    to: 'masghouniamal84@gmail.com',
                     mimeType: 'text/html'
                 )
             }

@@ -17,6 +17,7 @@ import java.io.Serializable;
 public class Universite implements Serializable {
     //hello
     //hi
+    //hi
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     long idUniversite;

@@ -22,4 +22,5 @@ public class Universite implements Serializable {
     String nomUniversite;
     String adresse;
 //test
+    //test
 }

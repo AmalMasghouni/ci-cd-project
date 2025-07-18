@@ -99,7 +99,7 @@
 		<repository>
 			<id>nexus</id> <!-- même id que dans settings.xml ou Jenkinsfile -->
 			<name>Nexus Release Repository</name>
-			<url>http://http://192.168.100.50:8081/repository/maven-releases/</url>
+			<url>http://192.168.100.50:8081/repository/maven-releases/</url>
 		</repository>
 	</distributionManagement>
 
